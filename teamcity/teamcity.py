@@ -25,7 +25,7 @@ Example Usage
 
 Update Record
 -------------
-1.0.0.1122   11/22/2022   Yunlin Tan([None])            Python API for triggering TeamCity by REST API.
+0.1.0.1122   11/22/2022   Yunlin Tan([None])            Python API for triggering TeamCity by REST API.
 
 Depends On
 ----------
