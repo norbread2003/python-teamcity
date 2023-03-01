@@ -88,7 +88,7 @@ class TeamCity:
             base_url = f'{self.server}/app/rest'
         return authentication_method, base_url, header
 
-    def request_base(self, url, method, extra_headers={}, data=None, timeout=60, retries=3):
+    def request_base(self, url, method, extra_headers={}, data=None, timeout=None, retries=3):
         url, headers = f'{self.base_url}/{url}', self.header
         headers.update(extra_headers)
         logging.info(f'Calling TeamCity API: {url}')
@@ -121,12 +121,12 @@ class TeamCity:
             logging.error(f'No retries left, failed to {method.lower()} request to TeamCity: {response.status_code}')
             raise ValueError(f'No retries left, failed to {method.lower()} request to TeamCity: {response.status_code}')
 
-    def post_request(self, url, extra_headers={}, data=None, timeout=60, retries=3):
+    def post_request(self, url, extra_headers={}, data=None, timeout=None, retries=3):
         extra_headers.update({'Content-Type': 'application/json'})
         return self.request_base(url=url, method='POST', extra_headers=extra_headers, data=data, timeout=timeout,
                                  retries=retries)
 
-    def get_request(self, url, extra_headers={}, data=None, timeout=60, retries=3):
+    def get_request(self, url, extra_headers={}, data=None, timeout=None, retries=3):
         extra_headers.update({'Accept': 'application/json'})
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, timeout=timeout,
                                  retries=retries).json()
