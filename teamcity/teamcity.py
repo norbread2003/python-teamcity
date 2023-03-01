@@ -55,7 +55,7 @@ class TeamCity:
         self.session = requests.Session()
 
     @staticmethod
-    def process_server_address(server):
+    def process_server_address(server: object):
         """Process server address."""
         if not server:
             logging.error('Failed to detect TeamCity server.')
@@ -131,8 +131,58 @@ class TeamCity:
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, timeout=timeout,
                                  retries=retries).json()
 
-    def get_all_builds(self, build_type_id, max_results=10000):
-        """Get builds by build type id from TeamCity."""
-        url = f'builds?locator=defaultFilter:false,buildType:(id:{build_type_id}),count:{max_results}'
-        response = self.get_request(url)
-        return response['build']
+    def get_all_builds(self, build_type_id='', count=100000):
+        """Get builds from TeamCity."""
+        url = f'builds?locator=defaultFilter:false,count:{count}'
+        if build_type_id != '':
+            url += f',buildType:(id:{build_type_id})'
+        return self.get_request(url)['build']
+
+    def get_detail_build(self, build_id):
+        """Get detail build by build id from TeamCity."""
+        url = f'builds/id:{build_id}'
+        return self.get_request(url)
+
+    def get_build_dependencies(self, build_id, count=10000):
+        """Get build dependencies by build id from TeamCity."""
+        url = f'builds?locator=defaultFilter:false,' \
+              f'snapshotDependency(to:(id:{build_id})),count:{count},or:(personal:false,and:(personal:true,' \
+              f'user:current))&fields=count,build(id,number,branchName,defaultBranch,queuedDate,startDate,' \
+              f'finishDate,history,composite,links(link(type,relativeUrl)),comment(text,timestamp,user(id,' \
+              f'name,username)),statusChangeComment(text,timestamp,user(id,name,username)),statusText,' \
+              f'status,state,failedToStart,personal,detachedFromAgent,finishOnAgentDate,pinned,pinInfo(' \
+              f'text,timestamp,user(id,name,username)),user(id,name,username),customization,canceledInfo(' \
+              f'text,user(id,name,username)),agent(name,id,links(link(type,relativeUrl)),environment(' \
+              f'osType),typeId,connected,pool(id,name)),tags(tag(name,private),$locator(private:any,' \
+              f'owner:current)),artifacts($locator(count:1),count:($optional)),limitedChangesCount(' \
+              f'$optional),buildType(id,paused,internalId,projectId,name,type,links(link(type,' \
+              f'relativeUrl))),snapshot-dependencies(count,build(id)),running-info(percentageComplete,' \
+              f'elapsedSeconds,estimatedTotalSeconds,leftSeconds,probablyHanging,lastActivityTime,outdated,' \
+              f'outdatedReasonBuild(number,links(link(type,relativeUrl)))),waitReason,queuePosition,' \
+              f'startEstimate,finishEstimate,plannedAgent(name,id,environment(osType),typeId,pool(id,name)),' \
+              f'delayedByBuild(id,number,status,state,failedToStart,personal,canceledInfo,buildType(id)),' \
+              f'triggered(date,displayText,buildType(id,paused,internalId,projectId,name,type,links(' \
+              f'link(type,relativeUrl)))))'
+        return self.get_request(url)['build']
+
+    def get_user(self, username='') -> dict:
+        """Get user by username from TeamCity.
+
+        :param username: username, if empty - get current user
+        :return: user dict, for example:
+
+        {'username': 'teamcity', 'name': 'Teamcity', 'id': 200, 'email': 'support@jetbrains.com',
+         'lastLogin': '20230122T192035+0800', 'href': '/app/rest/users/id:200', }
+        """
+        url = f'users/id:{username}' if username else 'users/current'
+        return self.get_request(url)
+
+    def get_all_users(self) -> list:
+        """Get all users from TeamCity.
+
+        :return: list of users, for example:
+
+        [{'username': 'teamcity', 'name': 'Teamcity', 'id': 200, 'email': '},]
+        """
+        url = 'users'
+        return self.get_request(url)['user']
