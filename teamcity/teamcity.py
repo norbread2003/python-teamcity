@@ -138,7 +138,7 @@ class TeamCity:
             url += f',buildType:(id:{build_type_id})'
         return self.get_request(url)['build']
 
-    def get_detail_build(self, build_id):
+    def get_build_details(self, build_id):
         """Get detail build by build id from TeamCity."""
         url = f'builds/id:{build_id}'
         return self.get_request(url)
