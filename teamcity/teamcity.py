@@ -131,11 +131,30 @@ class TeamCity:
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, timeout=timeout,
                                  retries=retries).json()
 
-    def get_all_builds(self, build_type_id='', count=100000):
-        """Get builds from TeamCity."""
+    def get_all_builds(self, build_type_id='', full_build=False, count=10000):
+        """Get builds from TeamCity.
+
+        Default count is 1e5. Extend it if necessary, but it will affect teamcity server performance.
+        REST API Reference: https://www.jetbrains.com/help/teamcity/rest/get-build-details.html
+        """
         url = f'builds?locator=defaultFilter:false,count:{count}'
+        if full_build:
+            url += ',canceled:any,running:any,branch:<any>'
         if build_type_id != '':
             url += f',buildType:(id:{build_type_id})'
+        return self.get_request(url)['build']
+
+    def get_builds_by_date(self, start_date='', finish_date='', build_type_id='', full_build=False, count=100000):
+        """Get builds by date from TeamCity."""
+        url = f'builds?locator=defaultFilter:false,count:{count}'
+        if full_build:
+            url += ',canceled:any,running:any,branch:<any>'
+        if build_type_id != '':
+            url += f',buildType:(id:{build_type_id})'
+        if start_date != '':
+            url += f',startDate:{start_date}'
+        if finish_date != '':
+            url += f',finishDate:{finish_date}'
         return self.get_request(url)['build']
 
     def get_build_details(self, build_id):
