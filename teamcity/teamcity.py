@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # ********************************************************************************
-# © 2022 Yunlin Tan. All Rights Reserved.
+# © 2022-2023 Yunlin Tan. All Rights Reserved.
 # ********************************************************************************
 
 """
@@ -155,6 +155,16 @@ class TeamCity:
         data = self.get_request(url)['build']
         return [self.get_build_details(build['id']) for build in data] if details else data
 
+    def get_builds_by_since_build(self, since_build_id='', build_type_id='', details=False, count=10000):
+        """Get builds by since build from TeamCity."""
+        url = f'builds?locator=defaultFilter:false,count:{count}'
+        if build_type_id != '':
+            url += f',buildType:(id:{build_type_id})'
+        if since_build_id != '':
+            url += f',sinceBuild:(id:{since_build_id})'
+        data = self.get_request(url)['build']
+        return [self.get_build_details(build['id']) for build in data] if details else data
+
     def get_custom_builds(self, locator='', build_type_id='', details=False, count=100000):
         """Get builds by custom locator from TeamCity."""
         url = f'builds?locator=defaultFilter:false,count:{count}'
@@ -165,9 +175,17 @@ class TeamCity:
         data = self.get_request(url)['build']
         return [self.get_build_details(build['id']) for build in data] if details else data
 
-    def get_queued_builds(self, build_type_id='', details=False, count=1000):
+    def get_queued_builds(self, build_type_id='', details=False, count=5000):
         """Get queued builds from TeamCity."""
         url = f'buildQueue?locator=count:{count}'
+        if build_type_id != '':
+            url += f',buildType:(id:{build_type_id})'
+        data = self.get_request(url)['build']
+        return [self.get_build_details(build['id']) for build in data] if details else data
+
+    def get_running_builds(self, build_type_id='', details=True, count=5000):
+        """Get running builds from TeamCity."""
+        url = f'builds?locator=defaultFilter:false,count:{count},running:true'
         if build_type_id != '':
             url += f',buildType:(id:{build_type_id})'
         data = self.get_request(url)['build']
