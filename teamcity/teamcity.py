@@ -27,6 +27,7 @@ Update Record
 -------------
 0.1.0.1122   11/22/2022   Yunlin Tan([None])            Python API for triggering TeamCity by REST API.
 0.1.1        11/25/2022   Yunlin Tan([None])            Add more functions by requests.
+0.1.5        5/25/2023    Yunlin Tan([None])            Multiple features added.
 
 Depends On
 ----------
@@ -155,19 +156,41 @@ class TeamCity:
         data = self.get_request(url)['build']
         return [self.get_build_details(build['id']) for build in data] if details else data
 
-    def get_builds_by_since_build(self, since_build_id='', build_type_id='', details=False, count=10000):
+    def get_builds_by_since_build(self, since_build_id='', build_type_id='', details=True, count=10000):
         """Get builds by since build from TeamCity."""
-        url = f'builds?locator=defaultFilter:false,count:{count}'
-        if build_type_id != '':
-            url += f',buildType:(id:{build_type_id})'
-        if since_build_id != '':
-            url += f',sinceBuild:(id:{since_build_id})'
-        data = self.get_request(url)['build']
-        return [self.get_build_details(build['id']) for build in data] if details else data
+        if build_type_id != '' and not details:
+            raise Exception('Currently only the default "build_type_id" and "details" parameters are supported.')
 
-    def get_custom_builds(self, locator='', build_type_id='', details=False, count=100000):
+        default_builds = sorted(self.get_custom_builds(default=True), key=lambda x: x['id'], reverse=True)
+        # TODO(yunlin): latest_build_id is the latest build id of the successful build, not the latest build id
+        latest_build_id = default_builds[0]['id'] if len(default_builds) > 0 else 0
+
+        result = []
+        if since_build_id > latest_build_id:
+            logging.info(f'No new builds since build {since_build_id}')
+            return result
+
+        logging.info(f'Start to get builds from build {since_build_id} to build {latest_build_id}')
+        for build_id in range(since_build_id, latest_build_id + 1):
+            single_build = self.get_build_details(build_id)
+            if single_build != dict() and single_build['id'] == build_id:
+                result.append(single_build)
+            else:
+                # TODO(yunlin): Need to fix build id extremely small issue.
+                logging.info(f'Build {build_id} does not exist')
+                logging.warning(f'Please confirm the existence of the build id you provided. '
+                                f'Otherwise the function will keep polling and will not stop. '
+                                f'This issue will be fixed in the future.')
+            if len(result) >= count:
+                break
+        return result
+
+    def get_custom_builds(self, locator='', build_type_id='', default=False, details=False, count=100000):
         """Get builds by custom locator from TeamCity."""
-        url = f'builds?locator=defaultFilter:false,count:{count}'
+        if default:
+            url = f'builds?locator=count:{100 if count == 100000 else count}'
+        else:
+            url = f'builds?locator=defaultFilter:false,count:{count}'
         if locator != '':
             url += f',{locator}'
         if build_type_id != '':
@@ -194,7 +217,12 @@ class TeamCity:
     def get_build_details(self, build_id):
         """Get detail build by build id from TeamCity."""
         url = f'builds/id:{build_id}'
-        return self.get_request(url)
+        try:
+            return self.get_request(url)
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get build {build_id} details.')
+            return dict()
 
     def get_build_dependencies(self, build_id, count=10000):
         """Get build dependencies by build id from TeamCity."""
