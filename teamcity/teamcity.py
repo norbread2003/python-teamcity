@@ -28,6 +28,7 @@ Update Record
 0.1.0.1122   11/22/2022   Yunlin Tan([None])            Python API for triggering TeamCity by REST API.
 0.1.1        11/25/2022   Yunlin Tan([None])            Add more functions by requests.
 0.1.5        5/25/2023    Yunlin Tan([None])            Multiple features added.
+0.1.6        5/26/2023    Yunlin Tan([None])            Optimize get_build_dependencies function.
 
 Depends On
 ----------
@@ -244,7 +245,8 @@ class TeamCity:
               f'delayedByBuild(id,number,status,state,failedToStart,personal,canceledInfo,buildType(id)),' \
               f'triggered(date,displayText,buildType(id,paused,internalId,projectId,name,type,links(' \
               f'link(type,relativeUrl)))))'
-        return self.get_request(url)['build']
+        data = self.get_request(url)['build']
+        return data if data else []
 
     def get_user(self, username='') -> dict:
         """Get user by username from TeamCity.
