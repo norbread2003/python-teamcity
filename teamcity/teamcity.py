@@ -29,6 +29,7 @@ Update Record
 0.1.1        11/25/2022   Yunlin Tan([None])            Add more functions by requests.
 0.1.5        5/25/2023    Yunlin Tan([None])            Multiple features added.
 0.1.6        5/26/2023    Yunlin Tan([None])            Optimize get_build_dependencies function.
+0.1.7        8/29/2023    Yunlin Tan([None])            Support to get build artifacts content.
 
 Depends On
 ----------
@@ -133,6 +134,11 @@ class TeamCity:
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, timeout=timeout,
                                  retries=retries).json()
 
+    def get_request_file(self, url, extra_headers={}, data=None, timeout=None, retries=3):
+        extra_headers.update({'Accept': 'application/json'})
+        return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, timeout=timeout,
+                                 retries=retries).text
+
     def get_all_builds(self, build_type_id='', details=False, count=10000):
         """Get builds from TeamCity.
 
@@ -224,6 +230,31 @@ class TeamCity:
             logging.error(ex)
             logging.error(f'Failed to get build {build_id} details.')
             return dict()
+
+    def get_artifacts_list(self, build_id):
+        """Get artifacts list by build id from TeamCity."""
+        url = f'builds/id:{build_id}/artifacts'
+        try:
+            return self.get_request(url)['file']
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get build {build_id} artifacts.')
+            return list()
+
+    def get_artifacts_content(self, build_id, artifact_path):
+        """Get artifacts content by build id and artifact path from TeamCity."""
+        artifact_list = self.get_artifacts_list(build_id)
+        for artifact in artifact_list:
+            if artifact['name'] == artifact_path:
+                url = f'builds/id:{build_id}/artifacts/content/{artifact_path}'
+                try:
+                    return self.get_request_file(url)
+                except Exception as ex:
+                    logging.error(ex)
+                    logging.error(f'Failed to get build {build_id} artifact {artifact_path} content.')
+                    return  ''
+        logging.error(f'Failed to get build {build_id} artifact {artifact_path} content.')
+        return ''
 
     def get_build_dependencies(self, build_id, count=10000):
         """Get build dependencies by build id from TeamCity."""
