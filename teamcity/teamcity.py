@@ -30,6 +30,7 @@ Update Record
 0.1.5        5/25/2023    Yunlin Tan([None])            Multiple features added.
 0.1.6        5/26/2023    Yunlin Tan([None])            Optimize get_build_dependencies function.
 0.1.7        8/29/2023    Yunlin Tan([None])            Support to get build artifacts content.
+0.1.8        10/15/2023   Yunlin Tan([None])            Support starting and canceling builds.
 
 Depends On
 ----------
@@ -252,7 +253,7 @@ class TeamCity:
                 except Exception as ex:
                     logging.error(ex)
                     logging.error(f'Failed to get build {build_id} artifact {artifact_path} content.')
-                    return  ''
+                    return ''
         logging.error(f'Failed to get build {build_id} artifact {artifact_path} content.')
         return ''
 
@@ -300,3 +301,26 @@ class TeamCity:
         """
         url = 'users'
         return self.get_request(url)['user']
+
+    def cancel_build(self, build_id):
+        """Cancel build by build id from TeamCity."""
+        queue_url = f'buildQueue?locator=id:{build_id}'
+        if len(self.get_request(queue_url)['builds']) > 0:
+            return self.post_request(f'buildQueue/id:{build_id}')
+        else:
+            if self.get_build_details(build_id).get('state', '') == 'running':
+                return self.post_request(f'builds/id:{build_id}')
+            else:
+                logging.error(f'Build {build_id} is not running or in queue.')
+                return False
+
+    def start_build(self, build_type_id, comment='', parameters=None, custom_data=None):
+        """Start build by build type id from TeamCity."""
+        url = f'buildQueue'
+        data = {"buildType": {"id": build_type_id},
+                "comment": {"text": comment}}
+        if parameters:
+            data['properties'] = {"property": parameters}
+        if custom_data:
+            data.update(custom_data)
+        return self.post_request(url, data=data)
