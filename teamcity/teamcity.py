@@ -30,6 +30,8 @@ Update Record
 0.1.5        5/25/2023    Yunlin Tan([None])            Multiple features added.
 0.1.6        5/26/2023    Yunlin Tan([None])            Optimize get_build_dependencies function.
 0.1.7        8/29/2023    Yunlin Tan([None])            Support to get build artifacts content.
+0.1.8        10/15/2023   Yunlin Tan([None])            Support starting and canceling builds.
+0.1.9        10/18/2023   Yunlin Tan([None])            Support rerunning builds.
 
 Depends On
 ----------
@@ -91,7 +93,7 @@ class TeamCity:
             base_url = f'{self.server}/app/rest'
         return authentication_method, base_url, header
 
-    def request_base(self, url, method, extra_headers={}, data=None, timeout=None, retries=3):
+    def request_base(self, url, method, extra_headers={}, data=None, json=None, timeout=None, retries=3):
         url, headers = f'{self.base_url}/{url}', self.header
         headers.update(extra_headers)
         logging.info(f'Calling TeamCity API: {url}')
@@ -99,10 +101,10 @@ class TeamCity:
         while retries > 0:
             try:
                 if self.authentication_method in [AUTH_METHOD.TOKENS, AUTH_METHOD.GUEST]:
-                    response = self.session.request(method, url, headers=headers, data=data, timeout=timeout)
+                    response = self.session.request(method, url, headers=headers, data=data, json=json, timeout=timeout)
                 elif self.authentication_method == AUTH_METHOD.USER:
                     response = self.session.request(method, url, auth=(self.user, self.password), headers=headers,
-                                                    data=data, timeout=timeout)
+                                                    data=data, json=json, timeout=timeout)
                 elif self.authentication_method == AUTH_METHOD.LOGGED_IN:
                     logging.error('You are not logged in to TeamCity, POST method is not supported.')
                     raise ValueError('You are not logged in to TeamCity, POST method is not supported.')
@@ -124,20 +126,20 @@ class TeamCity:
             logging.error(f'No retries left, failed to {method.lower()} request to TeamCity: {response.status_code}')
             raise ValueError(f'No retries left, failed to {method.lower()} request to TeamCity: {response.status_code}')
 
-    def post_request(self, url, extra_headers={}, data=None, timeout=None, retries=3):
+    def post_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
         extra_headers.update({'Content-Type': 'application/json'})
-        return self.request_base(url=url, method='POST', extra_headers=extra_headers, data=data, timeout=timeout,
-                                 retries=retries)
+        return self.request_base(url=url, method='POST', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries)
 
-    def get_request(self, url, extra_headers={}, data=None, timeout=None, retries=3):
+    def get_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
         extra_headers.update({'Accept': 'application/json'})
-        return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, timeout=timeout,
-                                 retries=retries).json()
+        return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries).json()
 
-    def get_request_file(self, url, extra_headers={}, data=None, timeout=None, retries=3):
+    def get_request_file(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
         extra_headers.update({'Accept': 'application/json'})
-        return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, timeout=timeout,
-                                 retries=retries).text
+        return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries).text
 
     def get_all_builds(self, build_type_id='', details=False, count=10000):
         """Get builds from TeamCity.
@@ -252,7 +254,7 @@ class TeamCity:
                 except Exception as ex:
                     logging.error(ex)
                     logging.error(f'Failed to get build {build_id} artifact {artifact_path} content.')
-                    return  ''
+                    return ''
         logging.error(f'Failed to get build {build_id} artifact {artifact_path} content.')
         return ''
 
@@ -300,3 +302,45 @@ class TeamCity:
         """
         url = 'users'
         return self.get_request(url)['user']
+
+    def cancel_build(self, build_id):
+        """Cancel build by build id from TeamCity."""
+        queue_url = f'buildQueue?locator=id:{build_id}'
+        if len(self.get_request(queue_url)['build']) > 0:
+            return self.post_request(f'buildQueue/id:{build_id}',
+                                     json={'comment': 'Cancelled by python-teamcity',
+                                           'readdIntoQueue': False})
+        else:
+            if self.get_build_details(build_id).get('state', '') == 'running':
+                return self.post_request(f'builds/id:{build_id}',
+                                         json={'comment': 'Cancelled by python-teamcity',
+                                               'readdIntoQueue': False})
+            else:
+                logging.error(f'Build {build_id} is not running or in queue.')
+                return False
+
+    def start_build(self, build_type_id, comment='', parameters=None, custom_data=None):
+        """Start build by build type id from TeamCity."""
+        url = f'buildQueue'
+        tc_json = {"buildType": {"id": build_type_id},
+                   "comment": {"text": comment}}
+        if parameters:
+            tc_json['properties'] = {"property": parameters}
+        if custom_data:
+            tc_json.update(custom_data)
+        return self.post_request(url, json=tc_json)
+
+    def rerun_build(self, build_id, parameters=True):
+        """Rerun build by build id from TeamCity."""
+        origin = self.get_build_details(build_id)
+        if origin is None or origin.get('buildType', {}).get('id', '') == '':
+            logging.error(f'Build {build_id} does not exist.')
+            return False
+        build_type_id, rerun_parameters = origin['buildType']['id'], []
+        if parameters and origin.get('properties', {}).get('property', []) != []:
+            for tc_property in origin['properties']['property']:
+                if 'inherited' not in tc_property:
+                    rerun_parameters.append({'name': tc_property['name'], 'value': tc_property['value']})
+        rerun_parameters = None if not rerun_parameters else rerun_parameters
+        return self.start_build(build_type_id, comment=f'Rerun build {build_id} by python-teamcity',
+                                parameters=rerun_parameters)
