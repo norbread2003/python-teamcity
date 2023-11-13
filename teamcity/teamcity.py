@@ -32,6 +32,7 @@ Update Record
 0.1.7        8/29/2023    Yunlin Tan([None])            Support to get build artifacts content.
 0.1.8        10/15/2023   Yunlin Tan([None])            Support starting and canceling builds.
 0.1.9        10/18/2023   Yunlin Tan([None])            Support rerunning builds.
+0.2.0        11/13/2023   Yunlin Tan([None])            Change packing method.
 
 Depends On
 ----------
