@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # ********************************************************************************
-# © 2022-2023 Yunlin Tan. All Rights Reserved.
+# © 2022-2024 Yunlin Tan. All Rights Reserved.
 # ********************************************************************************
 
 """
@@ -33,6 +33,7 @@ Update Record
 0.1.8        10/15/2023   Yunlin Tan([None])            Support starting and canceling builds.
 0.1.9        10/18/2023   Yunlin Tan([None])            Support rerunning builds.
 0.2.0        11/13/2023   Yunlin Tan([None])            Change packing method.
+0.2.1        1/23/2024    Yunlin Tan([None])            Add agent-related functions.
 
 Depends On
 ----------
@@ -345,3 +346,23 @@ class TeamCity:
         rerun_parameters = None if not rerun_parameters else rerun_parameters
         return self.start_build(build_type_id, comment=f'Rerun build {build_id} by python-teamcity',
                                 parameters=rerun_parameters)
+
+    def get_all_agents(self):
+        """Get all agents from TeamCity."""
+        url = 'agents'
+        try:
+            return self.get_request(url)['agent']
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get all agents from TeamCity.')
+            return list()
+
+    def get_agent_details(self, agent_id):
+        """Get detail agent by agent id from TeamCity."""
+        url = f'agents/id:{agent_id}'
+        try:
+            return self.get_request(url)
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get agent {agent_id} details')
+            return dict()
