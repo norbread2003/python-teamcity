@@ -34,6 +34,7 @@ Update Record
 0.1.9        10/18/2023   Yunlin Tan([None])            Support rerunning builds.
 0.2.0        11/13/2023   Yunlin Tan([None])            Change packing method.
 0.2.1        1/23/2024    Yunlin Tan([None])            Add agent-related functions.
+0.2.1        1/23/2024    Yunlin Tan([None])            Support to get agent details.
 
 Depends On
 ----------
@@ -347,11 +348,12 @@ class TeamCity:
         return self.start_build(build_type_id, comment=f'Rerun build {build_id} by python-teamcity',
                                 parameters=rerun_parameters)
 
-    def get_all_agents(self):
+    def get_all_agents(self, details=False):
         """Get all agents from TeamCity."""
         url = 'agents'
         try:
-            return self.get_request(url)['agent']
+            data = self.get_request(url)['agent']
+            return [self.get_agent_details(build['id']) for build in data] if details else data
         except Exception as ex:
             logging.error(ex)
             logging.error(f'Failed to get all agents from TeamCity.')
