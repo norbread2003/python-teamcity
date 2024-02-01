@@ -35,6 +35,7 @@ Update Record
 0.2.0        11/13/2023   Yunlin Tan([None])            Change packing method.
 0.2.1        1/23/2024    Yunlin Tan([None])            Add agent-related functions.
 0.2.1        1/23/2024    Yunlin Tan([None])            Support to get agent details.
+0.2.3        2/1/2024     Yunlin Tan([None])            Support to get all agents (including unauthorized).
 
 Depends On
 ----------
@@ -348,9 +349,9 @@ class TeamCity:
         return self.start_build(build_type_id, comment=f'Rerun build {build_id} by python-teamcity',
                                 parameters=rerun_parameters)
 
-    def get_all_agents(self, details=False):
+    def get_all_agents(self, details=False, authorized='true'):
         """Get all agents from TeamCity."""
-        url = 'agents'
+        url = f'agents?locator=authorized:{authorized}'
         try:
             data = self.get_request(url)['agent']
             return [self.get_agent_details(build['id']) for build in data] if details else data
