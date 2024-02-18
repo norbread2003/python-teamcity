@@ -21,7 +21,7 @@ Arguments
 
 Example Usage
 -------------
-    None
+    python3 examples/sample.py
 
 Update Record
 -------------
