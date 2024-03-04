@@ -36,6 +36,7 @@ Update Record
 0.2.1        1/23/2024    Yunlin Tan([None])            Add agent-related functions.
 0.2.1        1/23/2024    Yunlin Tan([None])            Support to get agent details.
 0.2.3        2/1/2024     Yunlin Tan([None])            Support to get all agents (including unauthorized).
+0.2.4        3/4/2024     Yunlin Tan([None])            Support to get actual build parameters by resulting-properties.
 
 Depends On
 ----------
@@ -140,7 +141,12 @@ class TeamCity:
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries).json()
 
-    def get_request_file(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
+    def get_string_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
+        extra_headers.update({'Accept': 'text/plain'})
+        return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries).text
+
+    def get_file_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
         extra_headers.update({'Accept': 'application/json'})
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries).text
@@ -237,6 +243,39 @@ class TeamCity:
             logging.error(f'Failed to get build {build_id} details.')
             return dict()
 
+    def get_build_actual_parameters(self, build_id, property_name=''):
+        """Get actual build parameters of the matching build by resulting-properties from TeamCity.
+
+        :param build_id: TeamCity build id.
+        :param property_name: A valid property name could be empty.
+        :return: List format actual parameters or string format specific result attributes.
+        """
+        try:
+
+            if property_name == '':
+                url = f'builds/id:{build_id}/resulting-properties'
+                return self.get_request(url)['property']
+            else:
+                url = f'builds/id:{build_id}/resulting-properties/{property_name}'
+                return self.get_string_request(url)
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get build {build_id} actual parameters.')
+            return list() if property_name == '' else None
+
+    def get_build_resulting_properties(self, build_id, property_name):
+        """Get the specific resulting properties of the matching build from TeamCity.
+
+        :param build_id: TeamCity build id.
+        :param property_name: A valid property name must be provided.
+        :return: String format specific result attributes.
+        """
+        if property_name == '':
+            logging.error('Property name is empty. '
+                          'Please provide a valid property name or use get_build_actual_parameters instead.')
+            return None
+        return self.get_build_actual_parameters(build_id, property_name)
+
     def get_artifacts_list(self, build_id):
         """Get artifacts list by build id from TeamCity."""
         url = f'builds/id:{build_id}/artifacts'
@@ -254,7 +293,7 @@ class TeamCity:
             if artifact['name'] == artifact_path:
                 url = f'builds/id:{build_id}/artifacts/content/{artifact_path}'
                 try:
-                    return self.get_request_file(url)
+                    return self.get_file_request(url)
                 except Exception as ex:
                     logging.error(ex)
                     logging.error(f'Failed to get build {build_id} artifact {artifact_path} content.')

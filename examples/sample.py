@@ -47,8 +47,16 @@ TEAMCITY_TOKENS = os.environ.get('TEAMCITY_TOKENS', None)
 tc = TeamCity(server=TEAMCITY_SERVER, tokens=TEAMCITY_TOKENS)  # Recommended method
 
 # Get details of a specific build using its build_id
-build_details = tc.get_build_details(build_id=33651345) # Replace with your build_id
+build_details = tc.get_build_details(build_id=33651345)  # Replace with your build_id
 print(build_details)
+
+# Get actual build parameters of the matching build.
+build_parameters = tc.get_build_actual_parameters(build_id=33651345)  # Replace with your build_id
+print(build_parameters)
+
+# Get specific actual build parameter of the matching build.
+specific_parameters = tc.get_build_actual_parameters(build_id=33651345, property_name='build.number')
+print(specific_parameters)
 
 # # Get a list of all running builds
 # running_builds = tc.get_running_builds()
