@@ -46,6 +46,14 @@ TEAMCITY_TOKENS = os.environ.get('TEAMCITY_TOKENS', None)
 # Initialize the TeamCity object with your server and tokens
 tc = TeamCity(server=TEAMCITY_SERVER, tokens=TEAMCITY_TOKENS)  # Recommended method
 
+# Get latest successful build details of a specific build_type_id
+latest_successful_build = tc.get_latest_build(build_type_id='build_type_id')  # Replace with your build_type_id
+print(latest_successful_build)
+
+# Get latest build details of a specific build_type_id
+latest_build = tc.get_latest_build(build_type_id='build_type_id', success_only=False)  # Replace with your build_type_id
+print(latest_build)
+
 # Get details of a specific build using its build_id
 build_details = tc.get_build_details(build_id=33651345)  # Replace with your build_id
 print(build_details)
