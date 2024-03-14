@@ -37,7 +37,7 @@ Update Record
 0.2.1        1/23/2024    Yunlin Tan([None])            Support to get agent details.
 0.2.3        2/1/2024     Yunlin Tan([None])            Support to get all agents (including unauthorized).
 0.2.4        3/4/2024     Yunlin Tan([None])            Support to get actual build parameters by resulting-properties.
-0.2.5        3/13/2024     Yunlin Tan([None])           Add more functions to get builds.
+0.2.5        3/13/2024    Yunlin Tan([None])            Add more functions to get builds.
 
 Depends On
 ----------
@@ -164,9 +164,17 @@ class TeamCity:
         data = self.get_request(url)['build']
         return [self.get_build_details(build['id']) for build in data] if details else data
 
-    def get_latest_build(self, build_type_id=''):
-        """Get latest build from TeamCity."""
-        url = f'builds?locator=defaultFilter:false,count:1'
+    def get_latest_build(self, build_type_id='', success_only=True):
+        """Get latest build from TeamCity.
+        :param build_type_id: build type id in TeamCity, must be provided.
+        :param success_only: True to get the latest successful build, False to get the latest build.
+        :return: dict format latest build details, empty dict if no build found.
+
+        """
+        if success_only:
+            url = f'builds?locator=defaultFilter:false,count:1,status:SUCCESS'
+        else:
+            url = f'builds?locator=defaultFilter:false,count:1'
         if build_type_id != '':
             url += f',buildType:(id:{build_type_id})'
         data = self.get_request(url)['build']
