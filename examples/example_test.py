@@ -5,7 +5,7 @@
 # ********************************************************************************
 
 """
-@package examples.sample.py
+@package examples.example_test.py
 
 @brief python-teamcity example.
 
@@ -21,7 +21,7 @@ Arguments
 
 Example Usage
 -------------
-    python3 examples/sample.py
+    python3 examples/example_test.py
 
 Update Record
 -------------
@@ -35,36 +35,35 @@ Depends On
 **Other Dependencies:**
     - None
 """
-import os
-
+from examples.example_const import *
 from teamcity import TeamCity
-
-# It is recommended to obtain TeamCity authorization via environment variables.
-TEAMCITY_SERVER = os.environ.get('TEAMCITY_SERVER', None)
-TEAMCITY_TOKENS = os.environ.get('TEAMCITY_TOKENS', None)
 
 # Initialize the TeamCity object with your server and tokens
 tc = TeamCity(server=TEAMCITY_SERVER, tokens=TEAMCITY_TOKENS)  # Recommended method
 
 # Get latest successful build details of a specific build_type_id
-latest_successful_build = tc.get_latest_build(build_type_id='build_type_id')  # Replace with your build_type_id
+latest_successful_build = tc.get_latest_build(build_type_id=EX_BUILD_TYPE_ID)
 print(latest_successful_build)
 
 # Get latest build details of a specific build_type_id
-latest_build = tc.get_latest_build(build_type_id='build_type_id', success_only=False)  # Replace with your build_type_id
+latest_build = tc.get_latest_build(build_type_id=EX_BUILD_TYPE_ID, success_only=False)
 print(latest_build)
 
 # Get details of a specific build using its build_id
-build_details = tc.get_build_details(build_id=33651345)  # Replace with your build_id
+build_details = tc.get_build_details(build_id=EX_BUILD_ID)  # Replace with your build_id
 print(build_details)
 
 # Get actual build parameters of the matching build.
-build_parameters = tc.get_build_actual_parameters(build_id=33651345)  # Replace with your build_id
+build_parameters = tc.get_build_actual_parameters(build_id=EX_BUILD_ID)  # Replace with your build_id
 print(build_parameters)
 
 # Get specific actual build parameter of the matching build.
-specific_parameters = tc.get_build_actual_parameters(build_id=33651345, property_name='build.number')
+specific_parameters = tc.get_build_actual_parameters(build_id=EX_BUILD_ID, property_name='build.number')
 print(specific_parameters)
+
+# Get canceled info of a specific build by build_id
+canceled_info = tc.get_canceled_info(build_id=EX_BUILD_ID)
+print(canceled_info)
 
 # # Get a list of all running builds
 # running_builds = tc.get_running_builds()

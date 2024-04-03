@@ -21,7 +21,7 @@ Arguments
 
 Example Usage
 -------------
-    python3 examples/sample.py
+    python3 examples/example_test.py
 
 Update Record
 -------------
@@ -38,6 +38,7 @@ Update Record
 0.2.3        2/1/2024     Yunlin Tan([None])            Support to get all agents (including unauthorized).
 0.2.4        3/4/2024     Yunlin Tan([None])            Support to get actual build parameters by resulting-properties.
 0.2.5        3/13/2024    Yunlin Tan([None])            Add more functions to get builds.
+0.2.9        4/3/2024     Yunlin Tan([None])            Support to get latest build detail by build type id.
 
 Depends On
 ----------
@@ -63,7 +64,6 @@ class TeamCity:
         self.password = password or os.environ.get('TEAMCITY_PASSWORD', None)
         self.guest = guest or os.environ.get('TEAMCITY_GUEST', False)
         self.authentication_method, self.base_url, self.header = self.check_auth_method()
-        self.session = requests.Session()
 
     @staticmethod
     def process_server_address(server: object):
@@ -102,15 +102,16 @@ class TeamCity:
     def request_base(self, url, method, extra_headers={}, data=None, json=None, timeout=None, retries=3):
         url, headers = f'{self.base_url}/{url}', self.header
         headers.update(extra_headers)
+        session = requests.Session()
         logging.info(f'Calling TeamCity API: {url}')
 
         while retries > 0:
             try:
                 if self.authentication_method in [AUTH_METHOD.TOKENS, AUTH_METHOD.GUEST]:
-                    response = self.session.request(method, url, headers=headers, data=data, json=json, timeout=timeout)
+                    response = session.request(method, url, headers=headers, data=data, json=json, timeout=timeout)
                 elif self.authentication_method == AUTH_METHOD.USER:
-                    response = self.session.request(method, url, auth=(self.user, self.password), headers=headers,
-                                                    data=data, json=json, timeout=timeout)
+                    response = session.request(method, url, auth=(self.user, self.password), headers=headers,
+                                               data=data, json=json, timeout=timeout)
                 elif self.authentication_method == AUTH_METHOD.LOGGED_IN:
                     logging.error('You are not logged in to TeamCity, POST method is not supported.')
                     raise ValueError('You are not logged in to TeamCity, POST method is not supported.')
@@ -163,22 +164,6 @@ class TeamCity:
             url += f',buildType:(id:{build_type_id})'
         data = self.get_request(url)['build']
         return [self.get_build_details(build['id']) for build in data] if details else data
-
-    def get_latest_build(self, build_type_id='', success_only=True):
-        """Get latest build from TeamCity.
-        :param build_type_id: build type id in TeamCity, must be provided.
-        :param success_only: True to get the latest successful build, False to get the latest build.
-        :return: dict format latest build details, empty dict if no build found.
-
-        """
-        if success_only:
-            url = f'builds?locator=defaultFilter:false,count:1,status:SUCCESS'
-        else:
-            url = f'builds?locator=defaultFilter:false,count:1'
-        if build_type_id != '':
-            url += f',buildType:(id:{build_type_id})'
-        data = self.get_request(url)['build']
-        return self.get_build_details(data[0]['id']) if data else dict()
 
     def get_builds_by_date(self, start_date='', finish_date='', build_type_id='', details=False, count=100000):
         """Get builds by date from TeamCity."""
@@ -250,6 +235,22 @@ class TeamCity:
         data = self.get_request(url)['build']
         return [self.get_build_details(build['id']) for build in data] if details else data
 
+    def get_latest_build(self, build_type_id='', success_only=True):
+        """Get latest build from TeamCity.
+        :param build_type_id: build type id in TeamCity, must be provided.
+        :param success_only: True to get the latest successful build, False to get the latest build.
+        :return: dict format latest build details, empty dict if no build found.
+
+        """
+        if success_only:
+            url = f'builds?locator=defaultFilter:false,count:1,status:SUCCESS'
+        else:
+            url = f'builds?locator=defaultFilter:false,count:1'
+        if build_type_id != '':
+            url += f',buildType:(id:{build_type_id})'
+        data = self.get_request(url)['build']
+        return self.get_build_details(data[0]['id']) if data else dict()
+
     def get_build_details(self, build_id):
         """Get detail build by build id from TeamCity."""
         url = f'builds/id:{build_id}'
@@ -258,6 +259,16 @@ class TeamCity:
         except Exception as ex:
             logging.error(ex)
             logging.error(f'Failed to get build {build_id} details.')
+            return dict()
+
+    def get_canceled_info(self, build_id):
+        """Get canceled info by build id from TeamCity."""
+        url = f'builds/id:{build_id}/canceledInfo'
+        try:
+            return self.get_request(url)
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get build {build_id} canceled info.')
             return dict()
 
     def get_build_actual_parameters(self, build_id, property_name=''):
