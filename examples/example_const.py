@@ -37,5 +37,6 @@ import os
 TEAMCITY_SERVER = os.environ.get('TEAMCITY_SERVER', None)
 TEAMCITY_TOKENS = os.environ.get('TEAMCITY_TOKENS', None)
 
-EX_BUILD_ID = 35193036  # Replace with your build_id
-EX_BUILD_TYPE_ID = 'Tools_TeamcityBuildStatsCollector_StaticDataCollection'  # Replace with your build_type_id
+EX_BUILD_ID = 0  # Replace with your build_id
+EX_BUILD_TYPE_ID = 'Test'  # Replace with your build_type_id
+EX_PROJECT_ID = 'Test'  # Replace with your project_id
