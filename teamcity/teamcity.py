@@ -14,6 +14,7 @@
 @date 11/22/2022
 
 **Related Page**: https://github.com/norbread2003/python-teamcity
+**Reference Page**: https://www.jetbrains.com/help/teamcity/rest/teamcity-rest-api-documentation.html
 
 Arguments
 ---------
@@ -39,6 +40,7 @@ Update Record
 0.2.4        3/4/2024     Yunlin Tan([None])            Support to get actual build parameters by resulting-properties.
 0.2.5        3/13/2024    Yunlin Tan([None])            Add more functions to get builds.
 0.2.9        4/3/2024     Yunlin Tan([None])            Support to get latest build detail by build type id.
+0.3.0        4/8/2024     Yunlin Tan([None])            Support to get build queue changes.
 
 Depends On
 ----------
@@ -53,7 +55,7 @@ import os
 
 import requests
 
-from teamcity.teamcity_const import AUTH_METHOD
+from teamcity.teamcity_const import AuthMethod, RequestMethod, RequestReturnType
 
 
 class TeamCity:
@@ -81,38 +83,40 @@ class TeamCity:
         header = {'Accept': 'application/json'}
         if self.tokens:
             logging.info(f'Logging in TeamCity with tokens.')
-            authentication_method = AUTH_METHOD.TOKENS
+            authentication_method = AuthMethod.TOKENS
             base_url = f'{self.server}/app/rest'
             header.update({'Authorization': f'Bearer {self.tokens}'})
         elif self.user and self.password:
             logging.info(f'Logging TeamCity with user: {self.user}')
-            authentication_method = AUTH_METHOD.USER
+            authentication_method = AuthMethod.USER
             base_url = f'{self.server}/httpAuth/app/rest'
         elif self.guest:  # Guest login
             logging.info(f'Logging TeamCity as guest.')
-            authentication_method = AUTH_METHOD.GUEST
+            authentication_method = AuthMethod.GUEST
             base_url = f'{self.server}/guestAuth/app/rest'
         else:  # No authentication
             logging.warning('No authentication method provided, assume you are logged in to TeamCity in the browser.')
             logging.warning('If you are not logged in, you will get 401 Unauthorized error.')
-            authentication_method = AUTH_METHOD.LOGGED_IN
+            authentication_method = AuthMethod.LOGGED_IN
             base_url = f'{self.server}/app/rest'
         return authentication_method, base_url, header
 
-    def request_base(self, url, method, extra_headers={}, data=None, json=None, timeout=None, retries=3):
+    def request_base(self, url, method, extra_headers=None, data=None, json=None, timeout=None, retries=3):
         url, headers = f'{self.base_url}/{url}', self.header
+        extra_headers = {} if extra_headers is None else extra_headers
         headers.update(extra_headers)
         session = requests.Session()
         logging.info(f'Calling TeamCity API: {url}')
 
+        response = None
         while retries > 0:
             try:
-                if self.authentication_method in [AUTH_METHOD.TOKENS, AUTH_METHOD.GUEST]:
+                if self.authentication_method in [AuthMethod.TOKENS, AuthMethod.GUEST]:
                     response = session.request(method, url, headers=headers, data=data, json=json, timeout=timeout)
-                elif self.authentication_method == AUTH_METHOD.USER:
+                elif self.authentication_method == AuthMethod.USER:
                     response = session.request(method, url, auth=(self.user, self.password), headers=headers,
                                                data=data, json=json, timeout=timeout)
-                elif self.authentication_method == AUTH_METHOD.LOGGED_IN:
+                elif self.authentication_method == AuthMethod.LOGGED_IN:
                     logging.error('You are not logged in to TeamCity, POST method is not supported.')
                     raise ValueError('You are not logged in to TeamCity, POST method is not supported.')
                 else:
@@ -123,32 +127,37 @@ class TeamCity:
                 logging.error(f'Failed to {method.lower()} request to TeamCity: {e}, retries left: {retries}')
 
             if response is None or response.status_code != 200:
-                logging.error(
-                    f'Failed to {method.lower()} request to TeamCity: {response.status_code}, retries left: {retries}')
+                return_code = response.status_code if response is not None else 'NA'
+                logging.error(f'Failed to {method.lower()} request to TeamCity: {return_code}, retries left: {retries}')
             else:
                 return response
 
             retries -= 1
         else:
-            logging.error(f'No retries left, failed to {method.lower()} request to TeamCity: {response.status_code}')
-            raise ValueError(f'No retries left, failed to {method.lower()} request to TeamCity: {response.status_code}')
+            return_code = response.status_code if response is not None else 'NA'
+            logging.error(f'No retries left, failed to {method.lower()} request to TeamCity: {return_code}')
+            raise ValueError(f'No retries left, failed to {method.lower()} request to TeamCity: {return_code}')
 
-    def post_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
+    def post_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        extra_headers = {} if extra_headers is None else extra_headers
         extra_headers.update({'Content-Type': 'application/json'})
         return self.request_base(url=url, method='POST', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries)
 
-    def get_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
+    def get_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        extra_headers = {} if extra_headers is None else extra_headers
         extra_headers.update({'Accept': 'application/json'})
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries).json()
 
-    def get_string_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
+    def get_string_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        extra_headers = {} if extra_headers is None else extra_headers
         extra_headers.update({'Accept': 'text/plain'})
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries).text
 
-    def get_file_request(self, url, extra_headers={}, data=None, json=None, timeout=None, retries=3):
+    def get_file_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        extra_headers = {} if extra_headers is None else extra_headers
         extra_headers.update({'Accept': 'application/json'})
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries).text
@@ -271,15 +280,69 @@ class TeamCity:
             logging.error(f'Failed to get build {build_id} canceled info.')
             return dict()
 
+    # def build_api_base(self, url, method, return_type=None, build_id='', locator=''):
+    #     return_type = RequestReturnType.NONE if method == RequestMethod.POST else return_type
+    #     try:
+    #         if type(method) is str and method.upper() not in [RequestMethod.GET, RequestMethod.POST]:
+    #             raise ValueError(f'Invalid method {method}. Only GET, POST are supported.')
+    #         if type(return_type) is str and method.lower() not in [RequestReturnType.JSON, RequestReturnType.TEXT,
+    #                                                                RequestReturnType.FILE]:
+    #             raise ValueError(f'Invalid return type {return_type}. Only JSON, TEXT, FILE are supported.')
+    #         if url == '':
+    #             raise ValueError('Please provide a valid url.')
+    #         if build_id != '' and locator == '':
+    #             raise ValueError('Please provide a valid build_id or locator.')
+    #
+    #         if build_id != '' and locator != '':  # TODO(yunlin): Need to fix this issue.
+    #             url = url.replace('{{buildLocator}}', locator)
+    #         elif build_id != '':
+    #             url = url.replace('{{buildLocator}}', f'id:{build_id}')
+    #         elif locator != '':
+    #             url = url.replace('{{buildLocator}}', locator)
+    #
+    #         if method.upper() == RequestMethod.GET:
+    #             if return_type == RequestReturnType.JSON:
+    #                 return self.get_request(url)
+    #             elif return_type == RequestReturnType.TEXT:
+    #                 return self.get_string_request(url)
+    #             elif return_type == RequestReturnType.FILE:
+    #                 return self.get_file_request(url)
+    #             else:
+    #                 return None
+    #         elif method.upper() == RequestMethod.POST:
+    #             return self.post_request(url)
+    #     except Exception as ex:
+    #         logging.error(ex)
+    #         if return_type == RequestReturnType.JSON:
+    #             return dict()
+    #         elif return_type == RequestReturnType.TEXT or return_type == RequestReturnType.FILE:
+    #             return ''
+    #         elif return_type == RequestReturnType.NONE:
+    #             return False
+    #         else:
+    #             return None
+    #
+    # def get_aggregated_build_status(self, build_id='', locator=''):
+    #     """Get the build status of aggregated matching builds.
+    #
+    #     :param build_id: TeamCity build id.
+    #     :param locator: TeamCity build locator, should be provided if build id is not available.
+    #                     If both parameters are provided, both will be used.
+    #
+    #     :return:
+    #     """
+    #     url = f'/app/rest/builds/aggregated/{{buildLocator}}/status'
+
     def get_build_actual_parameters(self, build_id, property_name=''):
         """Get actual build parameters of the matching build by resulting-properties from TeamCity.
+
+        Reference Page: https://www.jetbrains.com/help/teamcity/rest/buildapi.html#getBuildActualParameters
 
         :param build_id: TeamCity build id.
         :param property_name: A valid property name could be empty.
         :return: List format actual parameters or string format specific result attributes.
         """
         try:
-
             if property_name == '':
                 url = f'builds/id:{build_id}/resulting-properties'
                 return self.get_request(url)['property']
@@ -293,6 +356,8 @@ class TeamCity:
 
     def get_build_resulting_properties(self, build_id, property_name):
         """Get the specific resulting properties of the matching build from TeamCity.
+
+        Reference Page: https://www.jetbrains.com/help/teamcity/rest/buildapi.html#getBuildResultingProperties
 
         :param build_id: TeamCity build id.
         :param property_name: A valid property name must be provided.
@@ -351,6 +416,56 @@ class TeamCity:
               f'link(type,relativeUrl)))))'
         data = self.get_request(url)['build']
         return data if data else []
+
+    def get_all_changes(self, build_type_id='', locator='', count=10000):
+        """Get all changes by build type id from TeamCity."""
+        url = f'changes?count:{count}'
+        if build_type_id != '':
+            url += f',buildType:(id:{build_type_id})'
+        if locator != '':
+            url += f',{locator}'
+        try:
+            data = self.get_request(url)['change']
+            return data
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get all changes from TeamCity.')
+            return list()
+
+    def get_pending_changes(self, build_type_id='', locator=''):
+        """Get pending changes by build type id from TeamCity."""
+        url = f'changes?locator=buildType:(id:{build_type_id}),pending:true'
+        if locator != '':
+            url += f',{locator}'
+        try:
+            data = self.get_request(url)
+            if len(data) > 0 and 'change' in data:
+                return data['change']
+            else:
+                logging.info(f'No pending changes found for build type {build_type_id}.')
+                return list()
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get pending changes from TeamCity.')
+            return list()
+
+    def get_project_build_types(self, project_id, details=True):
+        """Get project build types by project id from TeamCity.
+
+        :param project_id: project id in TeamCity.
+        :param details: True to get details, False to return build type id list.
+        :return: list of build types or list of build type ids.
+        """
+        url = f'projects/id:{project_id}/buildTypes'
+        try:
+            if details:
+                return self.get_request(url)['buildType']
+            else:
+                return [build['id'] for build in self.get_request(url)['buildType']]
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get project {project_id} build types.')
+            return list()
 
     def get_user(self, username='') -> dict:
         """Get user by username from TeamCity.
