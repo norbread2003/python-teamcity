@@ -449,16 +449,23 @@ class TeamCity:
             logging.error(f'Failed to get pending changes from TeamCity.')
             return list()
 
-    def get_project_build_types(self, project_id):
-        """Get project build types by project id from TeamCity."""
+    def get_project_build_types(self, project_id, details=True):
+        """Get project build types by project id from TeamCity.
+
+        :param project_id: project id in TeamCity.
+        :param details: True to get details, False to return build type id list.
+        :return: list of build types or list of build type ids.
+        """
         url = f'projects/id:{project_id}/buildTypes'
         try:
-            return self.get_request(url)['buildType']
+            if details:
+                return self.get_request(url)['buildType']
+            else:
+                return [build['id'] for build in self.get_request(url)['buildType']]
         except Exception as ex:
             logging.error(ex)
             logging.error(f'Failed to get project {project_id} build types.')
             return list()
-
 
     def get_user(self, username='') -> dict:
         """Get user by username from TeamCity.
