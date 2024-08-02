@@ -280,6 +280,21 @@ class TeamCity:
             logging.error(f'Failed to get build {build_id} canceled info.')
             return dict()
 
+    def get_build_type_steps(self, build_type_id):
+        """Get build type steps by build type id from TeamCity."""
+        url = f'buildTypes/id:{build_type_id}/steps'
+        try:
+            return self.get_request(url)['step']
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get build type {build_type_id} steps.')
+            return list()
+
+    def get_build_steps(self, build_id):
+        """Get build step info by build id from TeamCity."""
+        build_type_id = self.get_build_details(build_id).get('buildType', {}).get('id', '')
+        return self.get_build_type_steps(build_type_id)
+
     # def build_api_base(self, url, method, return_type=None, build_id='', locator=''):
     #     return_type = RequestReturnType.NONE if method == RequestMethod.POST else return_type
     #     try:
