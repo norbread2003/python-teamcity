@@ -102,6 +102,17 @@ class TeamCity:
         return authentication_method, base_url, header
 
     def request_base(self, url, method, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        """Base request function for TeamCity REST API.
+
+        :param url: Endpoint url after app/rest.
+        :param method: GET or POST.
+        :param extra_headers: (Optional) Extra headers for the request response.
+        :param data: Dictionary, list of tuples, bytes, or file-like object to send in the body of the class:`Request`.
+        :param json: JSON to send in the body of the class:`Request`.
+        :param timeout: Seconds to wait for the server to send data before giving up.
+        :param retries: Number of retries if the request fails.
+        :return:
+        """
         url, headers = f'{self.base_url}/{url}', self.header
         extra_headers = {} if extra_headers is None else extra_headers
         headers.update(extra_headers)
