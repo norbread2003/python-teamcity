@@ -41,7 +41,7 @@ from teamcity import TeamCity
 # Initialize the TeamCity object with your server and tokens
 tc = TeamCity(server=TEAMCITY_SERVER, tokens=TEAMCITY_TOKENS)  # Recommended method
 
-# Get latest successful build details of a specific build_type_id
+# Get the latest successful build details of a specific build_type_id
 latest_successful_build = tc.get_latest_build(build_type_id=EX_BUILD_TYPE_ID)
 print(latest_successful_build)
 
