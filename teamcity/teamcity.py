@@ -102,6 +102,17 @@ class TeamCity:
         return authentication_method, base_url, header
 
     def request_base(self, url, method, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        """Base request function for TeamCity REST API.
+
+        :param url: Endpoint url after app/rest.
+        :param method: GET or POST.
+        :param extra_headers: (Optional) Extra headers for the request response.
+        :param data: Dictionary, list of tuples, bytes, or file-like object to send in the body of the class:`Request`.
+        :param json: JSON to send in the body of the class:`Request`.
+        :param timeout: Seconds to wait for the server to send data before giving up.
+        :param retries: Number of retries if the request fails.
+        :return:
+        """
         url, headers = f'{self.base_url}/{url}', self.header
         extra_headers = {} if extra_headers is None else extra_headers
         headers.update(extra_headers)
@@ -280,47 +291,62 @@ class TeamCity:
             logging.error(f'Failed to get build {build_id} canceled info.')
             return dict()
 
-    # def build_api_base(self, url, method, return_type=None, build_id='', locator=''):
-    #     return_type = RequestReturnType.NONE if method == RequestMethod.POST else return_type
-    #     try:
-    #         if type(method) is str and method.upper() not in [RequestMethod.GET, RequestMethod.POST]:
-    #             raise ValueError(f'Invalid method {method}. Only GET, POST are supported.')
-    #         if type(return_type) is str and method.lower() not in [RequestReturnType.JSON, RequestReturnType.TEXT,
-    #                                                                RequestReturnType.FILE]:
-    #             raise ValueError(f'Invalid return type {return_type}. Only JSON, TEXT, FILE are supported.')
-    #         if url == '':
-    #             raise ValueError('Please provide a valid url.')
-    #         if build_id != '' and locator == '':
-    #             raise ValueError('Please provide a valid build_id or locator.')
-    #
-    #         if build_id != '' and locator != '':  # TODO(yunlin): Need to fix this issue.
-    #             url = url.replace('{{buildLocator}}', locator)
-    #         elif build_id != '':
-    #             url = url.replace('{{buildLocator}}', f'id:{build_id}')
-    #         elif locator != '':
-    #             url = url.replace('{{buildLocator}}', locator)
-    #
-    #         if method.upper() == RequestMethod.GET:
-    #             if return_type == RequestReturnType.JSON:
-    #                 return self.get_request(url)
-    #             elif return_type == RequestReturnType.TEXT:
-    #                 return self.get_string_request(url)
-    #             elif return_type == RequestReturnType.FILE:
-    #                 return self.get_file_request(url)
-    #             else:
-    #                 return None
-    #         elif method.upper() == RequestMethod.POST:
-    #             return self.post_request(url)
-    #     except Exception as ex:
-    #         logging.error(ex)
-    #         if return_type == RequestReturnType.JSON:
-    #             return dict()
-    #         elif return_type == RequestReturnType.TEXT or return_type == RequestReturnType.FILE:
-    #             return ''
-    #         elif return_type == RequestReturnType.NONE:
-    #             return False
-    #         else:
-    #             return None
+    def get_build_type_steps(self, build_type_id):
+        """Get build type steps by build type id from TeamCity."""
+        url = f'buildTypes/id:{build_type_id}/steps'
+        try:
+            return self.get_request(url)['step']
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to get build type {build_type_id} steps.')
+            return list()
+
+    def get_build_steps(self, build_id):
+        """Get build step info by build id from TeamCity."""
+        build_type_id = self.get_build_details(build_id).get('buildType', {}).get('id', '')
+        return self.get_build_type_steps(build_type_id)
+
+    def build_api_base(self, url, method, return_type=None, build_id='', locator=''):
+        return_type = RequestReturnType.NONE if method == RequestMethod.POST else return_type
+        try:
+            if type(method) is str and method.upper() not in [RequestMethod.GET, RequestMethod.POST]:
+                raise ValueError(f'Invalid method {method}. Only GET, POST are supported.')
+            if type(return_type) is str and method.lower() not in [RequestReturnType.JSON, RequestReturnType.TEXT,
+                                                                   RequestReturnType.FILE]:
+                raise ValueError(f'Invalid return type {return_type}. Only JSON, TEXT, FILE are supported.')
+            if url == '':
+                raise ValueError('Please provide a valid url.')
+            if build_id != '' and locator == '':
+                raise ValueError('Please provide a valid build_id or locator.')
+
+            if build_id != '' and locator != '':  # TODO(yunlin): Need to fix this issue.
+                url = url.replace('{{buildLocator}}', locator)
+            elif build_id != '':
+                url = url.replace('{{buildLocator}}', f'id:{build_id}')
+            elif locator != '':
+                url = url.replace('{{buildLocator}}', locator)
+
+            if method.upper() == RequestMethod.GET:
+                if return_type == RequestReturnType.JSON:
+                    return self.get_request(url)
+                elif return_type == RequestReturnType.TEXT:
+                    return self.get_string_request(url)
+                elif return_type == RequestReturnType.FILE:
+                    return self.get_file_request(url)
+                else:
+                    return None
+            elif method.upper() == RequestMethod.POST:
+                return self.post_request(url)
+        except Exception as ex:
+            logging.error(ex)
+            if return_type == RequestReturnType.JSON:
+                return dict()
+            elif return_type == RequestReturnType.TEXT or return_type == RequestReturnType.FILE:
+                return ''
+            elif return_type == RequestReturnType.NONE:
+                return False
+            else:
+                return None
     #
     # def get_aggregated_build_status(self, build_id='', locator=''):
     #     """Get the build status of aggregated matching builds.
