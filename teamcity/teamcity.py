@@ -306,27 +306,32 @@ class TeamCity:
         build_type_id = self.get_build_details(build_id).get('buildType', {}).get('id', '')
         return self.get_build_type_steps(build_type_id)
 
-    def build_api_base(self, url, method, return_type=None, build_id='', locator=''):
-        return_type = RequestReturnType.NONE if method == RequestMethod.POST else return_type
+    def build_api_base(self, url, request_method, return_type=None, build_id='', locator=''):
+        return_type = RequestReturnType.NONE if request_method == RequestMethod.POST else return_type
         try:
-            if type(method) is str and method.upper() not in [RequestMethod.GET, RequestMethod.POST]:
-                raise ValueError(f'Invalid method {method}. Only GET, POST are supported.')
-            if type(return_type) is str and method.lower() not in [RequestReturnType.JSON, RequestReturnType.TEXT,
-                                                                   RequestReturnType.FILE]:
-                raise ValueError(f'Invalid return type {return_type}. Only JSON, TEXT, FILE are supported.')
+            if type(request_method) is str:
+                if request_method.upper() not in [RequestMethod.GET, RequestMethod.POST]:
+                    raise ValueError(f'Invalid method {request_method}. Only GET, POST are supported.')
+                request_method = RequestMethod(request_method.upper())
+            if type(return_type) is str:
+                if request_method.lower() not in [RequestReturnType.JSON,
+                                                  RequestReturnType.TEXT,
+                                                  RequestReturnType.FILE]:
+                    raise ValueError(f'Invalid return type {return_type}. Only JSON, TEXT, FILE are supported.')
+                return_type = RequestReturnType(return_type.lower())
             if url == '':
                 raise ValueError('Please provide a valid url.')
-            if build_id != '' and locator == '':
+
+            if build_id != '' and locator != '':
+                url = url.replace('{buildLocator}', f'id:{build_id},{locator}')
+            elif build_id != '':
+                url = url.replace('{buildLocator}', f'id:{build_id}')
+            elif locator != '':
+                url = url.replace('{buildLocator}', locator)
+            else:
                 raise ValueError('Please provide a valid build_id or locator.')
 
-            if build_id != '' and locator != '':  # TODO(yunlin): Need to fix this issue.
-                url = url.replace('{{buildLocator}}', locator)
-            elif build_id != '':
-                url = url.replace('{{buildLocator}}', f'id:{build_id}')
-            elif locator != '':
-                url = url.replace('{{buildLocator}}', locator)
-
-            if method.upper() == RequestMethod.GET:
+            if request_method == RequestMethod.GET:
                 if return_type == RequestReturnType.JSON:
                     return self.get_request(url)
                 elif return_type == RequestReturnType.TEXT:
@@ -335,7 +340,7 @@ class TeamCity:
                     return self.get_file_request(url)
                 else:
                     return None
-            elif method.upper() == RequestMethod.POST:
+            elif request_method == RequestMethod.POST:
                 return self.post_request(url)
         except Exception as ex:
             logging.error(ex)
@@ -347,17 +352,18 @@ class TeamCity:
                 return False
             else:
                 return None
-    #
-    # def get_aggregated_build_status(self, build_id='', locator=''):
-    #     """Get the build status of aggregated matching builds.
-    #
-    #     :param build_id: TeamCity build id.
-    #     :param locator: TeamCity build locator, should be provided if build id is not available.
-    #                     If both parameters are provided, both will be used.
-    #
-    #     :return:
-    #     """
-    #     url = f'/app/rest/builds/aggregated/{{buildLocator}}/status'
+
+    def get_aggregated_build_status(self, build_id='', locator=''):
+        """Get the build status of aggregated matching builds.
+
+        :param build_id: TeamCity build id.
+        :param locator: TeamCity build locator, should be provided if build id is not available.
+                        If both parameters are provided, both will be used.
+
+        :return:
+        """
+        url = f'builds/aggregated/{{buildLocator}}/status'
+        return self.build_api_base(url, RequestMethod.GET, RequestReturnType.TEXT, build_id, locator)
 
     def get_build_actual_parameters(self, build_id, property_name=''):
         """Get actual build parameters of the matching build by resulting-properties from TeamCity.

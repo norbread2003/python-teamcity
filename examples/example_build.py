@@ -46,3 +46,7 @@ latest_successful_build = tc.get_latest_build(build_type_id=EX_BUILD_TYPE_ID)
 print(latest_successful_build)
 
 build_step_info = tc.get_build_steps(build_id=latest_successful_build['id'])
+print(build_step_info)
+
+build_status = tc.get_aggregated_build_status(build_id=latest_successful_build['id'])
+print(build_status)
