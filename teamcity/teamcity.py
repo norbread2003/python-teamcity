@@ -600,3 +600,104 @@ class TeamCity:
             logging.error(ex)
             logging.error(f'Failed to get agent {agent_id} details')
             return dict()
+
+    def pin_build(self, build_id, comment=None):
+        """Pin a build to prevent it from being cleaned up.
+        
+        :param build_id: TeamCity build ID
+        :param comment: Optional comment explaining why the build is pinned
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/pin'
+        try:
+            if comment:
+                self.put_request(url, data=comment)
+            else:
+                self.put_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to pin build {build_id}.')
+            return False
+
+    def unpin_build(self, build_id):
+        """Unpin a previously pinned build.
+        
+        :param build_id: TeamCity build ID
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/pin'
+        try:
+            self.delete_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to unpin build {build_id}.')
+            return False
+
+    def add_build_tag(self, build_id, tag):
+        """Add a tag to a build.
+        
+        :param build_id: TeamCity build ID
+        :param tag: Tag to add to the build
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/tags/'
+        try:
+            self.post_request(url, data=tag)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to add tag {tag} to build {build_id}.')
+            return False
+
+    def remove_build_tag(self, build_id, tag):
+        """Remove a tag from a build.
+        
+        :param build_id: TeamCity build ID
+        :param tag: Tag to remove from the build
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/tags/{tag}'
+        try:
+            self.delete_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to remove tag {tag} from build {build_id}.')
+            return False
+
+    def set_build_status(self, build_id, status):
+        """Mark a build as successful or failed.
+        
+        :param build_id: TeamCity build ID
+        :param status: 'SUCCESS' or 'FAILURE'
+        :return: Boolean indicating success
+        """
+        if status not in ['SUCCESS', 'FAILURE']:
+            logging.error(f'Invalid status: {status}. Must be SUCCESS or FAILURE.')
+            return False
+        
+        url = f'builds/id:{build_id}/status:{status}'
+        try:
+            self.put_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to set status of build {build_id} to {status}.')
+            return False
+
+    def delete_build(self, build_id):
+        """Delete a build.
+        
+        :param build_id: TeamCity build ID
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}'
+        try:
+            self.delete_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to delete build {build_id}.')
+            return False
