@@ -320,11 +320,11 @@ class TeamCity:
         return self.get_build_type_steps(build_type_id)
 
     def build_api_base(self, url, request_method, return_type=None, build_id='', locator=''):
-        return_type = RequestReturnType.NONE if request_method == RequestMethod.POST else return_type
+        return_type = RequestReturnType.NONE if request_method in [RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE] else return_type
         try:
             if type(request_method) is str:
-                if request_method.upper() not in [RequestMethod.GET, RequestMethod.POST]:
-                    raise ValueError(f'Invalid method {request_method}. Only GET, POST are supported.')
+                if request_method.upper() not in [RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE]:
+                    raise ValueError(f'Invalid method {request_method}. Only GET, POST, PUT, DELETE are supported.')
                 request_method = RequestMethod(request_method.upper())
             if type(return_type) is str:
                 if request_method.lower() not in [RequestReturnType.JSON,
@@ -355,6 +355,10 @@ class TeamCity:
                     return None
             elif request_method == RequestMethod.POST:
                 return self.post_request(url)
+            elif request_method == RequestMethod.PUT:
+                return self.put_request(url)
+            elif request_method == RequestMethod.DELETE:
+                return self.delete_request(url)
         except Exception as ex:
             logging.error(ex)
             if return_type == RequestReturnType.JSON:
