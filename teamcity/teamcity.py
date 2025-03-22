@@ -173,6 +173,19 @@ class TeamCity:
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries).text
 
+    def put_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        """PUT request to TeamCity REST API."""
+        extra_headers = {} if extra_headers is None else extra_headers
+        extra_headers.update({'Content-Type': 'application/json'})
+        return self.request_base(url=url, method='PUT', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries)
+
+    def delete_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        """DELETE request to TeamCity REST API."""
+        extra_headers = {} if extra_headers is None else extra_headers
+        return self.request_base(url=url, method='DELETE', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries)
+
     def get_all_builds(self, build_type_id='', details=False, count=10000):
         """Get builds from TeamCity.
 
@@ -307,11 +320,11 @@ class TeamCity:
         return self.get_build_type_steps(build_type_id)
 
     def build_api_base(self, url, request_method, return_type=None, build_id='', locator=''):
-        return_type = RequestReturnType.NONE if request_method == RequestMethod.POST else return_type
+        return_type = RequestReturnType.NONE if request_method in [RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE] else return_type
         try:
             if type(request_method) is str:
-                if request_method.upper() not in [RequestMethod.GET, RequestMethod.POST]:
-                    raise ValueError(f'Invalid method {request_method}. Only GET, POST are supported.')
+                if request_method.upper() not in [RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE]:
+                    raise ValueError(f'Invalid method {request_method}. Only GET, POST, PUT, DELETE are supported.')
                 request_method = RequestMethod(request_method.upper())
             if type(return_type) is str:
                 if request_method.lower() not in [RequestReturnType.JSON,
@@ -342,6 +355,10 @@ class TeamCity:
                     return None
             elif request_method == RequestMethod.POST:
                 return self.post_request(url)
+            elif request_method == RequestMethod.PUT:
+                return self.put_request(url)
+            elif request_method == RequestMethod.DELETE:
+                return self.delete_request(url)
         except Exception as ex:
             logging.error(ex)
             if return_type == RequestReturnType.JSON:
@@ -583,3 +600,104 @@ class TeamCity:
             logging.error(ex)
             logging.error(f'Failed to get agent {agent_id} details')
             return dict()
+
+    def pin_build(self, build_id, comment=None):
+        """Pin a build to prevent it from being cleaned up.
+        
+        :param build_id: TeamCity build ID
+        :param comment: Optional comment explaining why the build is pinned
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/pin'
+        try:
+            if comment:
+                self.put_request(url, data=comment)
+            else:
+                self.put_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to pin build {build_id}.')
+            return False
+
+    def unpin_build(self, build_id):
+        """Unpin a previously pinned build.
+        
+        :param build_id: TeamCity build ID
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/pin'
+        try:
+            self.delete_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to unpin build {build_id}.')
+            return False
+
+    def add_build_tag(self, build_id, tag):
+        """Add a tag to a build.
+        
+        :param build_id: TeamCity build ID
+        :param tag: Tag to add to the build
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/tags/'
+        try:
+            self.post_request(url, data=tag)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to add tag {tag} to build {build_id}.')
+            return False
+
+    def remove_build_tag(self, build_id, tag):
+        """Remove a tag from a build.
+        
+        :param build_id: TeamCity build ID
+        :param tag: Tag to remove from the build
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}/tags/{tag}'
+        try:
+            self.delete_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to remove tag {tag} from build {build_id}.')
+            return False
+
+    def set_build_status(self, build_id, status):
+        """Mark a build as successful or failed.
+        
+        :param build_id: TeamCity build ID
+        :param status: 'SUCCESS' or 'FAILURE'
+        :return: Boolean indicating success
+        """
+        if status not in ['SUCCESS', 'FAILURE']:
+            logging.error(f'Invalid status: {status}. Must be SUCCESS or FAILURE.')
+            return False
+        
+        url = f'builds/id:{build_id}/status:{status}'
+        try:
+            self.put_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to set status of build {build_id} to {status}.')
+            return False
+
+    def delete_build(self, build_id):
+        """Delete a build.
+        
+        :param build_id: TeamCity build ID
+        :return: Boolean indicating success
+        """
+        url = f'builds/id:{build_id}'
+        try:
+            self.delete_request(url)
+            return True
+        except Exception as ex:
+            logging.error(ex)
+            logging.error(f'Failed to delete build {build_id}.')
+            return False
