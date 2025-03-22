@@ -173,6 +173,19 @@ class TeamCity:
         return self.request_base(url=url, method='GET', extra_headers=extra_headers, data=data, json=json,
                                  timeout=timeout, retries=retries).text
 
+    def put_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        """PUT request to TeamCity REST API."""
+        extra_headers = {} if extra_headers is None else extra_headers
+        extra_headers.update({'Content-Type': 'application/json'})
+        return self.request_base(url=url, method='PUT', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries)
+
+    def delete_request(self, url, extra_headers=None, data=None, json=None, timeout=None, retries=3):
+        """DELETE request to TeamCity REST API."""
+        extra_headers = {} if extra_headers is None else extra_headers
+        return self.request_base(url=url, method='DELETE', extra_headers=extra_headers, data=data, json=json,
+                                 timeout=timeout, retries=retries)
+
     def get_all_builds(self, build_type_id='', details=False, count=10000):
         """Get builds from TeamCity.
 
